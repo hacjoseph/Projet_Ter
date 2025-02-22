@@ -10,8 +10,8 @@
     - pip install -r requirements.txt
 
 ##Faire les migrations
-    -python manage.py makemigrations
-    -python manage.py migrate
+    - python manage.py makemigrations
+    - python manage.py migrate
 
 ##Démarrer le seveur:
     - python manage.py runserver
