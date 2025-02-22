@@ -1,0 +1,17 @@
+# Avant de commencer,
+## il faut créer un environnement avec la commande:
+    -python -m venv env
+
+## activer l'environnement:
+    - Windows: env\Scripts\activate
+    - Linux/Mac: sourcce env/bin/activate
+
+## Installer les bibliothèques dans le fichier requirements.txt
+    - pip install -r requirements.txt
+
+##Faire les migrations
+    -python manage.py makemigrations
+    -python manage.py migrate
+
+##Démarrer le seveur:
+    - python manage.py runserver
