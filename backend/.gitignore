@@ -1,0 +1,5 @@
+env/
+__pycache__
+Ges_student_project.sql
+update_file.txt
+db.sqlite3
