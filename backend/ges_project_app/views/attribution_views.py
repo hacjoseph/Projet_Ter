@@ -4,11 +4,11 @@ from rest_framework import status
 from collections import defaultdict
 from ges_project_app.models import ProjectAssignment, Student, Project
 from ges_project_app.attribution import attribution, gale_shapley_attribution, analyser_affectation
-from .permissions import IsAdmin    
+from .permissions import IsAdmin,IsAdminUser    
 
 class ProjectAssignmentView(APIView):
     
-    # permission_classes = [IsAdmin]
+    permission_classes = [IsAdminUser]
     
     def post(self, request, format=None):
         """

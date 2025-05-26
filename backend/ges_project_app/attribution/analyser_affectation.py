@@ -12,58 +12,76 @@ def analyser_affectations(level, algorithm):
     assigned_students = set(a.student for a in affectations)
     unassigned_students = set(all_students) - assigned_students
 
-    # Classer les non affectés
-    no_wish = []
-    no_available_place = []
-    
+    # Préparer les vœux
     voeux_dict = defaultdict(list)
     for v in all_voeux:
         voeux_dict[v.student.id].append(v.project.id)
 
+    # Équipes et capacités
     equipes_capacite = {
         equipe.project_id: 0 for equipe in Team.objects.filter(project__level=level)
     }
     for equipe in Team.objects.filter(project__level=level):
         equipes_capacite[equipe.project_id] += equipe.max_students
 
+    # Préparer compteur général
     demande_par_projet = Counter(v.project_id for v in all_voeux)
+
+    # Analyse des non affectés
+    no_wish = []
+    no_available_place = []
 
     for student in unassigned_students:
         student_voeux = voeux_dict.get(student.id, [])
         if not student_voeux:
             no_wish.append(student)
         else:
-            # Vérifier si tous les projets choisis sont pleins
             tous_pleins = all(
                 demande_par_projet[p] > equipes_capacite.get(p, 0)
                 for p in student_voeux
             )
             if tous_pleins:
                 no_available_place.append(student)
-                
-    # Calcul du score de satisfaction selon l'algo choisi
-            if algorithm == "algo1":
-                satisfaction_score = gale_shapley_attribution.calculer_satisfaction(level=level)
-            elif algorithm == "algo2":
-                satisfaction_score = attribution.calculer_satisfaction(level=level)
-            else:
-                return Response(
-                    {"error": f"Algorithme inconnu : {algorithm}"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
 
-    # 2. Suggestions
+    # Calcul du score de satisfaction selon l'algo choisi
+    if algorithm == "algo1":
+        satisfaction_score = gale_shapley_attribution.calculer_satisfaction(level=level)
+    elif algorithm == "algo2":
+        satisfaction_score = attribution.calculer_satisfaction(level=level)
+    else:
+        return Response(
+            {"error": f"Algorithme inconnu : {algorithm}"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # -----------------------
+    # Suggestions (basées uniquement sur les non affectés ayant fait des vœux)
+    # -----------------------
+
+    # Étudiants non affectés ayant fait des vœux
+    non_affectes_ayant_fait_voeux = [
+        s for s in unassigned_students if s.id in voeux_dict
+    ]
+
+    # Recalculer la demande par projet pour ces étudiants uniquement
+    demande_filtrée = Counter()
+    for s in non_affectes_ayant_fait_voeux:
+        for pid in voeux_dict[s.id]:
+            demande_filtrée[pid] += 1
+
+    # Projets saturés selon ces étudiants
     projets_satures = [
         {
             "project_id": pid,
             "project_title": Project.objects.get(id=pid).title,
-            "demandes": demande_par_projet[pid],
-            "capacite": equipes_capacite[pid]
+            "demandes": demande_filtrée[pid],
+            "capacite": equipes_capacite.get(pid, 0)
         }
-        for pid in demande_par_projet
-        if demande_par_projet[pid] > equipes_capacite.get(pid, 0)
+        for pid in demande_filtrée
+        if demande_filtrée[pid] > equipes_capacite.get(pid, 0)
     ]
 
+    # Projets non demandés par ces étudiants
     projets_non_demandes = [
         {
             "project_id": project.id,
@@ -71,13 +89,19 @@ def analyser_affectations(level, algorithm):
             "supervisor": project.supervisor.username
         }
         for project in all_projects
-        if demande_par_projet.get(project.id, 0) == 0
+        if demande_filtrée.get(project.id, 0) == 0
     ]
 
     return {
         "non_affectes": {
-            "aucun_voeu": [{"id": s.id, "nom": s.user.username, "full_name": s.user.get_full_name()} for s in no_wish],
-            "projets_satures": [{"id": s.id, "nom": s.user.username, "full_name": s.user.get_full_name()} for s in no_available_place],
+            "aucun_voeu": [
+                {"id": s.id, "nom": s.user.username, "full_name": s.user.get_full_name()}
+                for s in no_wish
+            ],
+            "projets_satures": [
+                {"id": s.id, "nom": s.user.username, "full_name": s.user.get_full_name()}
+                for s in no_available_place
+            ],
             "autres": len(unassigned_students) - len(no_wish) - len(no_available_place)
         },
         "suggestions": {

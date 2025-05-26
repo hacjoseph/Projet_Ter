@@ -19,39 +19,40 @@ const VoeuxPage = () => {
         );
     };
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const projectsResponse = await api.get('/projects/');
-                const allProjects = projectsResponse.data;
+    const fetchData = async () => {
+        try {
+            const projectsResponse = await api.get('/projects/');
+            const allProjects = projectsResponse.data;
 
-                const voeuxResponse = await api.get('/voeux/');
-                const existingVoeux = voeuxResponse.data;
+            const voeuxResponse = await api.get('/voeux/');
+            const existingVoeux = voeuxResponse.data;
 
-                setVoeux(existingVoeux);
+            setVoeux(existingVoeux);
 
-                const deadlineResponse = await api.get('/deadlines/');
-                const voeuxDeadline = deadlineResponse.data.find(d => d.type === "voeux");
-                if (voeuxDeadline) {
-                    setDeadline(voeuxDeadline);
-                    const currentDate = new Date();
-                    const deadlineDate = new Date(voeuxDeadline.limite_date + "T23:59:59");
-                    setDeadlinePassed(currentDate > deadlineDate);
-                }
-
-                const availableProjects = filterAvailableProjects(allProjects, existingVoeux);
-                setProjects(availableProjects);
-
-                const initialPreferences = {};
-                existingVoeux.forEach(voeu => {
-                    initialPreferences[voeu.project_id] = voeu.note_preference;
-                });
-                setPreferences(initialPreferences);
-            } catch (error) {
-                console.error('Échec du chargement des données', error);
-                setError('Échec du chargement des données');
+            const deadlineResponse = await api.get('/deadlines/');
+            const voeuxDeadline = deadlineResponse.data.find(d => d.type === "voeux");
+            if (voeuxDeadline) {
+                setDeadline(voeuxDeadline);
+                const currentDate = new Date();
+                const deadlineDate = new Date(voeuxDeadline.limite_date + "T23:59:59");
+                setDeadlinePassed(currentDate > deadlineDate);
             }
-        };
+
+            const availableProjects = filterAvailableProjects(allProjects, existingVoeux);
+            setProjects(availableProjects);
+
+            const initialPreferences = {};
+            existingVoeux.forEach(voeu => {
+                initialPreferences[voeu.project_id] = voeu.note_preference;
+            });
+            setPreferences(initialPreferences);
+        } catch (error) {
+            console.error('Échec du chargement des données', error);
+            setError('Échec du chargement des données');
+        }
+    };
+
+    useEffect(() => {
         fetchData();
     }, []);
 
@@ -155,7 +156,11 @@ const VoeuxPage = () => {
                         <p>
                             Veuillez sélectionner vos projets préférés et les classer par ordre de préférence.
                             <br />
-                            Vous devez sélectionner {deadline.max_choice} projets au maximum.
+                            {deadline && (
+                                <p>
+                                    Vous devez sélectionner obligatoirement {deadline.max_choice} projets ({deadline.max_choice - voeux.length} restants).
+                                </p>
+                            )}
                             <br />
                             Vous pouvez également d'ajouter une note de préférence chaque projet que vous ajoutez.
                             <br />
@@ -241,17 +246,17 @@ const VoeuxPage = () => {
                         <button
                             onClick={submitVoeux}
                             className="mt-4 p-2 bg-blue-500 text-white rounded"
-                            disabled={voeux.length < deadline.max_choice || deadlinePassed || voeux.length > deadline.max_choice}
+                            disabled={ !deadline ||voeux.length < deadline.max_choice || deadlinePassed || voeux.length > deadline.max_choice}
                         >
                             Soumettre mes vœux
                         </button>
 
-                        {voeux.length < deadline.max_choice && (
+                        {deadline && voeux.length < deadline.max_choice && (
                             <p className="text-red-500 mt-2">
                                 Vous devez sélectionner obligatoirement {deadline.max_choice} projets ({deadline.max_choice - voeux.length} restants) avant de pouvoir soumettre.
                             </p>
                         )}
-                        {voeux.length > deadline.max_choice && (
+                        {deadline && voeux.length > deadline.max_choice && (
                             <p className="text-red-500 mt-2">
                                 Vous Avez dépassé le nombre de voeux possibles. Veuillez retirer  ({voeux.length - deadline.max_choice}) voeux.
                             </p>
